@@ -1,2 +1,2 @@
 # SimpleGPT-Template
-grab this you want to train a gpt model
+grab this for a template to train a gpt model
