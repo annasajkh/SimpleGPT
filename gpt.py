@@ -12,7 +12,6 @@ class SwiGLU(nn.Module):
         return F.silu(gate) * x
 
 
-
 class TransformerBlock(nn.Module): 
     def __init__(
         self,
@@ -47,7 +46,6 @@ class TransformerBlock(nn.Module):
         x = x + self.attention(self.attn_layer_norm(x)) 
         x = x + self.mlp(self.mlp_layer_norm(x))
         return x
-
 
 
 class Transformer(nn.Module): 
