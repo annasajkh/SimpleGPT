@@ -169,7 +169,7 @@ class GPT(nn.Module):
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-model = GPT(n_heads=6, n_layers=6, n_embed=768, block_size=1024, n_vocab=50257, ignore_token=50,256)
+model = GPT(n_heads=6, n_layers=6, n_embed=768, block_size=1024, n_vocab=50257, ignore_token=50256)
 # model.load_state_dict(torch.load("transformer.pkl"))
 model.to(device)
 optimizer = AdamW(model.parameters(), lr=3e-4)
