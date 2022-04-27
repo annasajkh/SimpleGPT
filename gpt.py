@@ -6,12 +6,6 @@ from torch.optim import AdamW
 from IPython.display import clear_output
 
 
-class SwiGLU(nn.Module):
-    def forward(self, x):
-        x, gate = x.chunk(2, dim=-1)
-        return F.silu(gate) * x
-
-
 class TransformerBlock(nn.Module): 
     def __init__(
         self,
@@ -31,7 +25,7 @@ class TransformerBlock(nn.Module):
         
         self.mlp = nn.Sequential(
             nn.Linear(d_model, d_model * mlp_scale),
-            SwiGLU(),
+            nn.GELU(),
             nn.Linear(d_model * mlp_scale, d_model),
             nn.Dropout(resid_pdrop)
         )
@@ -43,8 +37,9 @@ class TransformerBlock(nn.Module):
         return self.attn(x, x, x, attn_mask=self.attn_mask, need_weights=False)[0]
     
     def forward(self, x):
-        x = x + self.attention(self.attn_layer_norm(x)) 
+        x = x + self.attention(self.attn_layer_norm(x))
         x = x + self.mlp(self.mlp_layer_norm(x))
+        
         return x
 
 
