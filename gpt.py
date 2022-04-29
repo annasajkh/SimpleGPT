@@ -5,7 +5,15 @@ from tqdm import tqdm
 from torch.optim import AdamW
 from IPython.display import clear_output
 
+# https://arxiv.org/abs/2002.05202
+# https://github.com/lucidrains/PaLM-pytorch/blob/main/palm_pytorch/palm_pytorch.py
+class SwiGLU(nn.Module):
+    def forward(self, x):
+        x, gate = x.chunk(2, dim=-1)
+        return F.silu(gate) * x
 
+
+#NormfFormer https://arxiv.org/abs/2110.09456
 class TransformerBlock(nn.Module): 
     def __init__(
         self,
@@ -18,15 +26,20 @@ class TransformerBlock(nn.Module):
     ):
         super().__init__()
         self.attn_mask = attn_mask
+        self.n_heads = n_heads
+        self.d_model = d_model
         self.attn = nn.MultiheadAttention(d_model, n_heads, dropout=attn_drop)
+        self.scale_attn = nn.Parameter(torch.ones((n_heads,)), requires_grad=True)
         
-        self.attn_layer_norm = nn.LayerNorm(d_model)
-        self.mlp_layer_norm = nn.LayerNorm(d_model)
+        self.pre_attn_layer_norm = nn.LayerNorm(d_model)
+        self.pre_mlp_layer_norm = nn.LayerNorm(d_model)
+        self.post_attn_layer_norm = nn.LayerNorm(d_model)
         
         self.mlp = nn.Sequential(
-            nn.Linear(d_model, d_model * mlp_scale),
-            nn.GELU(),
-            nn.Linear(d_model * mlp_scale, d_model),
+            nn.Linear(d_model, d_model * mlp_scale * 2, bias=False),
+            nn.SwiGLU(),
+            nn.LayerNorm(d_model),
+            nn.Linear(d_model * mlp_scale, d_model, bias=False),
             nn.Dropout(resid_pdrop)
         )
     
@@ -37,8 +50,15 @@ class TransformerBlock(nn.Module):
         return self.attn(x, x, x, attn_mask=self.attn_mask, need_weights=False)[0]
     
     def forward(self, x):
-        x = x + self.attention(self.attn_layer_norm(x))
-        x = x + self.mlp(self.mlp_layer_norm(x))
+        x = self.attention(self.pre_attn_layer_norm(x))
+        
+        tgt_len, bsz = x.size(0), x.size(1)
+        x = x.view(tgt_len, bsz, self.n_heads, self.attn.head_dim)
+        x = torch.einsum("tbhd,h->tbdh", x, self.scale_attn)
+        x = x.reshape(tgt_len, bsz, self.d_model)
+        
+        x = x + self.post_attn_layer_norm(x)
+        x = x + self.mlp(self.pre_mlp_layer_norm(x))
         
         return x
 
