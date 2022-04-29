@@ -13,7 +13,8 @@ class SwiGLU(nn.Module):
         return F.silu(gate) * x
 
 
-#NormfFormer https://arxiv.org/abs/2110.09456
+#NormFormer https://arxiv.org/abs/2110.09456
+#HeadScaling https://github.com/pytorch/fairseq/blob/c5ff181125c7e6126b49a85e5ebdd5f5b6a07914/fairseq/modules/transformer_layer.py
 class TransformerBlock(nn.Module): 
     def __init__(
         self,
