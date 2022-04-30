@@ -14,7 +14,6 @@ class SwiGLU(nn.Module):
 
 
 # NormFormer https://arxiv.org/abs/2110.09456
-# HeadScaling https://github.com/pytorch/fairseq/blob/c5ff181125c7e6126b49a85e5ebdd5f5b6a07914/fairseq/modules/transformer_layer.py
 class TransformerBlock(nn.Module): 
     def __init__(
         self,
@@ -30,7 +29,6 @@ class TransformerBlock(nn.Module):
         self.n_heads = n_heads
         self.d_model = d_model
         self.attn = nn.MultiheadAttention(d_model, n_heads, dropout=attn_drop, bias=False)
-        self.scale_attn = nn.Parameter(torch.ones((n_heads,)), requires_grad=True)
         
         self.pre_attn_layer_norm = nn.LayerNorm(d_model)
         self.pre_mlp_layer_norm = nn.LayerNorm(d_model)
@@ -48,14 +46,7 @@ class TransformerBlock(nn.Module):
         if self.attn_mask is not None:
             self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device)
         
-        x = self.attn(x, x, x, attn_mask=self.attn_mask, need_weights=False)[0]
-                
-        tgt_len, bsz = x.size(0), x.size(1)
-        x = x.view(tgt_len, bsz, self.n_heads, self.attn.head_dim)
-        x = torch.einsum("tbhd,h->tbdh", x, self.scale_attn)
-        x = x.reshape(tgt_len, bsz, self.d_model)
-        
-        return x
+        return self.attn(x, x, x, attn_mask=self.attn_mask, need_weights=False)[0]
     
     def forward(self, x):
         x = x + self.post_attn_layer_norm(self.attention(self.pre_attn_layer_norm(x)))
