@@ -13,8 +13,8 @@ class SwiGLU(nn.Module):
         return F.silu(gate) * x
 
 
-#NormFormer https://arxiv.org/abs/2110.09456
-#HeadScaling https://github.com/pytorch/fairseq/blob/c5ff181125c7e6126b49a85e5ebdd5f5b6a07914/fairseq/modules/transformer_layer.py
+# NormFormer https://arxiv.org/abs/2110.09456
+# HeadScaling https://github.com/pytorch/fairseq/blob/c5ff181125c7e6126b49a85e5ebdd5f5b6a07914/fairseq/modules/transformer_layer.py
 class TransformerBlock(nn.Module): 
     def __init__(
         self,
@@ -39,7 +39,7 @@ class TransformerBlock(nn.Module):
         self.mlp = nn.Sequential(
             nn.Linear(d_model, d_model * mlp_scale * 2, bias=False),
             SwiGLU(),
-            nn.LayerNorm(d_model),
+            nn.LayerNorm(d_model * mlp_scale),
             nn.Linear(d_model * mlp_scale, d_model, bias=False),
             nn.Dropout(resid_pdrop)
         )
@@ -48,17 +48,17 @@ class TransformerBlock(nn.Module):
         if self.attn_mask is not None:
             self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device)
         
-        return self.attn(x, x, x, attn_mask=self.attn_mask, need_weights=False)[0]
-    
-    def forward(self, x):
-        x = self.attention(self.pre_attn_layer_norm(x))
-        
+        x = self.attn(x, x, x, attn_mask=self.attn_mask, need_weights=False)[0]
+                
         tgt_len, bsz = x.size(0), x.size(1)
         x = x.view(tgt_len, bsz, self.n_heads, self.attn.head_dim)
         x = torch.einsum("tbhd,h->tbdh", x, self.scale_attn)
         x = x.reshape(tgt_len, bsz, self.d_model)
         
-        x = x + self.post_attn_layer_norm(x)
+        return x
+    
+    def forward(self, x):
+        x = x + self.post_attn_layer_norm(self.attention(self.pre_attn_layer_norm(x)))
         x = x + self.mlp(self.pre_mlp_layer_norm(x))
         
         return x
