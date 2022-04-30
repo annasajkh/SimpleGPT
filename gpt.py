@@ -5,8 +5,8 @@ from tqdm import tqdm
 from torch.optim import AdamW
 from IPython.display import clear_output
 
-# https://arxiv.org/abs/2002.05202
-# https://github.com/lucidrains/PaLM-pytorch/blob/main/palm_pytorch/palm_pytorch.py
+#GLU Variant https://arxiv.org/abs/2002.05202
+#SwiGLU https://github.com/lucidrains/PaLM-pytorch/blob/main/palm_pytorch/palm_pytorch.py
 class SwiGLU(nn.Module):
     def forward(self, x):
         x, gate = x.chunk(2, dim=-1)
