@@ -29,7 +29,7 @@ class TransformerBlock(nn.Module):
         self.attn_mask = attn_mask
         self.n_heads = n_heads
         self.d_model = d_model
-        self.attn = nn.MultiheadAttention(d_model, n_heads, dropout=attn_drop)
+        self.attn = nn.MultiheadAttention(d_model, n_heads, dropout=attn_drop, bias=False)
         self.scale_attn = nn.Parameter(torch.ones((n_heads,)), requires_grad=True)
         
         self.pre_attn_layer_norm = nn.LayerNorm(d_model)
