@@ -38,7 +38,7 @@ class TransformerBlock(nn.Module):
         
         self.mlp = nn.Sequential(
             nn.Linear(d_model, d_model * mlp_scale * 2, bias=False),
-            nn.SwiGLU(),
+            SwiGLU(),
             nn.LayerNorm(d_model),
             nn.Linear(d_model * mlp_scale, d_model, bias=False),
             nn.Dropout(resid_pdrop)
