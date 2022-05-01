@@ -4,8 +4,6 @@ from torch.nn import functional as F
 from tqdm import tqdm
 from torch.optim import AdamW
 from IPython.display import clear_output
-import json
-import random
 
 #GLU Variant https://arxiv.org/abs/2002.05202
 #SwiGLU https://github.com/lucidrains/PaLM-pytorch/blob/main/palm_pytorch/palm_pytorch.py
