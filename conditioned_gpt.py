@@ -155,9 +155,9 @@ class ConditionedGPT(nn.Module):
         
         return logits, loss
     
-    @torch.no_grad()
     #x shape should just be a token length
-    #x_condition shape should be (1, n_context, n_embed) 
+    #x_condition shape should be (1, n_context, n_embed)
+    @torch.no_grad() 
     def sample(self, x, x_condition, temperature=1.0, top_k=40, max_length=100, batch_size=1):
         x = torch.cat([torch.tensor([self.ignore_token, ]).to(device), x])
         
