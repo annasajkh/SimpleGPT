@@ -4,6 +4,8 @@ from torch.nn import functional as F
 from tqdm import tqdm
 from torch.optim import AdamW
 from IPython.display import clear_output
+import json
+import random
 
 #GLU Variant https://arxiv.org/abs/2002.05202
 #SwiGLU https://github.com/lucidrains/PaLM-pytorch/blob/main/palm_pytorch/palm_pytorch.py
@@ -31,6 +33,8 @@ class TransformerBlock(nn.Module):
         self.attn = nn.MultiheadAttention(d_model, n_heads, dropout=attn_drop, bias=False)
         
         self.pre_attn_layer_norm = nn.LayerNorm(d_model)
+        self.conditioned_layer_norm = nn.LayerNorm(d_model)
+
         self.pre_mlp_layer_norm = nn.LayerNorm(d_model)
         self.post_attn_layer_norm = nn.LayerNorm(d_model)
         
@@ -47,11 +51,14 @@ class TransformerBlock(nn.Module):
             self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device)
         
         if x_condition is None:
-          return self.attn(x, x, x, attn_mask=self.attn_mask, need_weights=False)[0]
+            return self.attn(x, x, x, attn_mask=self.attn_mask, need_weights=False)[0]
         else:
-          return self.attn(x_condition, x_condition, x, attn_mask=self.attn_mask, need_weights=False)[0]
+            return self.attn(x_condition, x_condition, x, attn_mask=None, need_weights=False)[0]
     
     def forward(self, x, x_condition):
+        if x_condition is not None:
+            x_condition = self.conditioned_layer_norm(x_condition)
+        
         x = x + self.post_attn_layer_norm(self.attention(self.pre_attn_layer_norm(x), x_condition))
         x = x + self.mlp(self.pre_mlp_layer_norm(x))
         
@@ -85,10 +92,11 @@ class Transformer(nn.Module):
 
         x = x.permute(1, 0, 2)
         
-        x = self.layers[0](x, x_condition)
+        x = self.layers[0](x, None)
+        x = self.layers[1](x, x_condition.permute(1, 0, 2))
         
-        for i in range(1, len(layers)):
-          x = self.layers[i](x, None)
+        for i in range(2, len(self.layers)):
+            x = self.layers[i](x, None)
          
         x = x.permute(1, 0, 2)
 
@@ -138,7 +146,7 @@ class ConditionedGPT(nn.Module):
         elif isinstance(module, nn.LayerNorm):
             torch.nn.init.zeros_(module.bias)
             torch.nn.init.ones_(module.weight)
-        elif isinstance(module, GPT):
+        elif isinstance(module, ConditionedGPT):
             torch.nn.init.normal_(module.transformer.pos_embed, mean=0.0, std=0.02)
     
     def forward(self, x, y=None, x_condition=None):
@@ -167,7 +175,7 @@ class ConditionedGPT(nn.Module):
         length = self.block_size if len(x) - 1 + max_length > self.block_size else len(x) - 1 + max_length
         
         for i in tqdm(range(len(x) - 1, length)): 
-            logits = self(batch, condition_batch)[0][:, i]
+            logits = self(batch, None, condition_batch)[0][:, i]
             
             logits = F.softmax(logits / temperature, dim=1)
             logits = torch.topk(logits, top_k)
@@ -182,11 +190,10 @@ class ConditionedGPT(nn.Module):
         return batch
 
 
-
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-model = ConditionedGPT(n_heads=6, n_layers=6, n_embed=512, block_size=1024, n_vocab=8193, ignore_token=0)
+model = ConditionedGPT(n_heads=4, n_layers=8, n_embed=512, block_size=1024, n_vocab=8193, ignore_token=0)
 # model.load_state_dict(torch.load("transformer.pkl"))
 model.to(device)
 optimizer = AdamW(model.parameters(), lr=3e-4)
