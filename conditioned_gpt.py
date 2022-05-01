@@ -84,6 +84,7 @@ class Transformer(nn.Module):
         x = self.ln_pre(x) 
 
         x = x.permute(1, 0, 2)
+        
         x = self.layers[0](x, x_condition)
         
         for i in range(1, len(layers)):
