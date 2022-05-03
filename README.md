@@ -1,4 +1,4 @@
-# SimpleGPT-Template
+# SimpleGPT
 very simple gpt implementation
 
 thanks boris for the useful information https://wandb.ai/dalle-mini/dalle-mini/reports/Evaluation-of-Transformer-Variants--VmlldzoxNjk4MTIw
