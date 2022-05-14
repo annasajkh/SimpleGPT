@@ -77,7 +77,7 @@ class Transformer(nn.Module):
 
     #the input is an embbeding with this shape (batch, n_context, n_embed) 
     def forward(self, x):
-        x = self.drop(x + self.pos_embed[:x.shape[1], :])
+        x = self.drop(x + self.pos_embed[:, :x.shape[1], :])
         x = self.ln_pre(x) 
 
         x = x.permute(1, 0, 2)
