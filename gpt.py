@@ -46,7 +46,7 @@ class TransformerBlock(nn.Module):
         if self.attn_mask is not None:
             self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device)
         
-        return self.attn(x, x, x, attn_mask=self.attn_mask, need_weights=False)[0]
+        return self.attn(x, x, x, attn_mask=self.attn_mask[:x.shape[0], :x.shape[0]], need_weights=False)[0]
     
     def forward(self, x):
         x = x + self.post_attn_layer_norm(self.attention(self.pre_attn_layer_norm(x)))
@@ -71,13 +71,13 @@ class Transformer(nn.Module):
         super().__init__()
         
         self.drop = nn.Dropout(embed_pdrop) 
-        self.pos_embed = nn.Parameter(torch.randn(n_context, n_embed)) 
+        self.pos_embed = nn.Parameter(torch.randn(1, n_context, n_embed)) 
         self.layers = nn.Sequential(*[TransformerBlock(n_embed, n_heads, attn_mask=attn_mask, mlp_scale=mlp_scale, attn_drop=attn_drop, resid_pdrop=resid_pdrop) for _ in range(n_layers)]) 
         self.ln_pre = nn.LayerNorm(n_embed)
 
     #the input is an embbeding with this shape (batch, n_context, n_embed) 
     def forward(self, x):
-        x = self.drop(x + self.pos_embed)
+        x = self.drop(x + self.pos_embed[:x.shape[1], :])
         x = self.ln_pre(x) 
 
         x = x.permute(1, 0, 2)
@@ -149,28 +149,23 @@ class GPT(nn.Module):
     
     @torch.no_grad()
     def sample(self, x, temperature=1.0, top_k=40, max_length=100, batch_size=1):
-        x = torch.cat([torch.tensor([self.ignore_token, ]).to(device), x])
+        batch = torch.stack([torch.cat([torch.tensor([self.ignore_token, ]).to(device), x]) for _ in range(0, batch_size)]).to(x.device)
+        length = self.block_size if len(x) + max_length > self.block_size else len(x) + max_length
         
-        batch = torch.stack([torch.cat([x, torch.full((self.block_size - len(x),), self.ignore_token).to(device)]) for _ in range(0, batch_size)]).to(x.device)
-        
-        
-        length = self.block_size if len(x) - 1 + max_length > self.block_size else len(x) - 1 + max_length
-        
-        for i in tqdm(range(len(x) - 1, length)): 
-            logits = self(batch)[0][:, i]
-            
+        for _ in tqdm(range(len(x), length)): 
+            logits = self(batch)[0][:, -1]
             logits = F.softmax(logits / temperature, dim=1)
+
             logits = torch.topk(logits, top_k)
 
-            out = logits[1][:, torch.multinomial(logits[0], num_samples=1)]
+            out = logits[1].gather(1, torch.multinomial(logits[0], num_samples=1))
 
             if torch.all(out) and out[0] == self.ignore_token:
                 break
-            
-            batch[:, i + 1] = out
+
+            batch = torch.cat([batch, out], dim=1)
 
         return batch
-
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
