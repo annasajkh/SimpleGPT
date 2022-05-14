@@ -155,7 +155,6 @@ class GPT(nn.Module):
         for _ in tqdm(range(len(x), length)): 
             logits = self(batch)[0][:, -1]
             logits = F.softmax(logits / temperature, dim=1)
-
             logits = torch.topk(logits, top_k)
 
             out = logits[1].gather(1, torch.multinomial(logits[0], num_samples=1))
