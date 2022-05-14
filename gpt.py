@@ -1,3 +1,6 @@
+!pip install transformers
+!pip install datasets
+
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -41,15 +44,27 @@ class TransformerBlock(nn.Module):
             nn.Linear(d_model * mlp_scale, d_model, bias=False),
             nn.Dropout(resid_pdrop)
         )
+        
+        self.cached = None
     
-    def attention(self, x): 
+    def attention(self, x, cache=None): 
         if self.attn_mask is not None:
             self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device)
         
-        return self.attn(x, x, x, attn_mask=self.attn_mask[:x.shape[0], :x.shape[0]], need_weights=False)[0]
+        if cache is not None:
+            out = self.attn(x[-1:], x, x, attn_mask=self.attn_mask[cache.shape[0], :x.shape[0]].unsqueeze(0), need_weights=False)[0]
+            return torch.cat([cache, out], dim=0)
+        else:
+            return self.attn(x, x, x, attn_mask=self.attn_mask[:x.shape[0], :x.shape[0]], need_weights=False)[0]
     
     def forward(self, x):
-        x = x + self.post_attn_layer_norm(self.attention(self.pre_attn_layer_norm(x)))
+        if not self.training:
+            attn = self.attention(self.pre_attn_layer_norm(x), cache=self.cached)
+            self.cached = attn
+        else:
+            attn = self.attention(self.pre_attn_layer_norm(x))
+        
+        x = x + self.post_attn_layer_norm(attn)
         x = x + self.mlp(self.pre_mlp_layer_norm(x))
         
         return x
@@ -72,18 +87,23 @@ class Transformer(nn.Module):
         
         self.drop = nn.Dropout(embed_pdrop) 
         self.pos_embed = nn.Parameter(torch.randn(1, n_context, n_embed)) 
-        self.layers = nn.Sequential(*[TransformerBlock(n_embed, n_heads, attn_mask=attn_mask, mlp_scale=mlp_scale, attn_drop=attn_drop, resid_pdrop=resid_pdrop) for _ in range(n_layers)]) 
+        self.layers = nn.Sequential(*[TransformerBlock(n_embed,
+                                                       n_heads,
+                                                       attn_mask=attn_mask,
+                                                       mlp_scale=mlp_scale,
+                                                       attn_drop=attn_drop,
+                                                       resid_pdrop=resid_pdrop) for _ in range(n_layers)]) 
         self.ln_pre = nn.LayerNorm(n_embed)
-
+        
     #the input is an embbeding with this shape (batch, n_context, n_embed) 
     def forward(self, x):
         x = self.drop(x + self.pos_embed[:, :x.shape[1], :])
         x = self.ln_pre(x) 
 
         x = x.permute(1, 0, 2)
-        x = self.layers(x) 
+        x = self.layers(x)
         x = x.permute(1, 0, 2)
-
+        
         return x
 
 
@@ -133,6 +153,10 @@ class GPT(nn.Module):
         elif isinstance(module, GPT):
             torch.nn.init.normal_(module.transformer.pos_embed, mean=0.0, std=0.02)
     
+    def reset_cache(self):
+        for layer in self.transformer.layers:
+            layer.cached = None
+
     def forward(self, x, y=None):
         x = self.embed(x)
         x = self.transformer(x)
@@ -144,11 +168,13 @@ class GPT(nn.Module):
         
         if y is not None:
             loss = F.cross_entropy(logits.transpose(1, 2), y, ignore_index=self.ignore_token)
-        
+
+
         return logits, loss
     
     @torch.no_grad()
     def sample(self, x, temperature=1.0, top_k=40, max_length=100, batch_size=1):
+        self.eval()
         batch = torch.stack([torch.cat([torch.tensor([self.ignore_token, ]).to(device), x]) for _ in range(0, batch_size)]).to(x.device)
         length = self.block_size if len(x) + max_length > self.block_size else len(x) + max_length
         
@@ -163,7 +189,9 @@ class GPT(nn.Module):
                 break
 
             batch = torch.cat([batch, out], dim=1)
-
+        
+        self.reset_cache()
+        
         return batch
 
 
@@ -173,4 +201,6 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 model = GPT(n_heads=6, n_layers=6, n_embed=768, block_size=1024, n_vocab=50257, ignore_token=50256)
 # model.load_state_dict(torch.load("transformer.pkl"))
 model.to(device)
+model.train()
+print(model.training)
 optimizer = AdamW(model.parameters(), lr=3e-4)
