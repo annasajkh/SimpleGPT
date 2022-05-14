@@ -49,7 +49,7 @@ class TransformerBlock(nn.Module):
             self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device)
         
         if cache is not None:
-            out = self.attn(x[-1:], x, x, attn_mask=self.attn_mask[cache.shape[0], :x.shape[0]].unsqueeze(0), need_weights=False)[0]
+            out = self.attn(x[-1:], x, x, attn_mask=None, need_weights=False)[0]
             return torch.cat([cache, out], dim=0)
         else:
             return self.attn(x, x, x, attn_mask=self.attn_mask[:x.shape[0], :x.shape[0]], need_weights=False)[0]
