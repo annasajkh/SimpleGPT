@@ -1,6 +1,3 @@
-!pip install transformers
-!pip install datasets
-
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
