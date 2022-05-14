@@ -172,6 +172,8 @@ class GPT(nn.Module):
     @torch.no_grad()
     def sample(self, x, temperature=1.0, top_k=40, max_length=100, batch_size=1):
         self.eval()
+        self.reset_cache()
+        
         batch = torch.stack([torch.cat([torch.tensor([self.ignore_token, ]).to(x.device), x]) for _ in range(0, batch_size)]).to(x.device)
         length = self.block_size if len(x) + max_length > self.block_size else len(x) + max_length
         
@@ -186,8 +188,6 @@ class GPT(nn.Module):
                 break
 
             batch = torch.cat([batch, out], dim=1)
-        
-        self.reset_cache()
         
         return batch
 
