@@ -44,14 +44,14 @@ class TransformerBlock(nn.Module):
         self.d_model = d_model
         self.attn = nn.MultiheadAttention(d_model, n_heads, dropout=attn_drop, bias=False)
         
-        self.pre_attn_layer_norm = nn.RMSNorm(d_model)
-        self.pre_mlp_layer_norm = nn.RMSNorm(d_model)
-        self.post_attn_layer_norm = nn.RMSNorm(d_model)
+        self.pre_attn_layer_norm = RMSNorm(d_model)
+        self.pre_mlp_layer_norm = RMSNorm(d_model)
+        self.post_attn_layer_norm = RMSNorm(d_model)
         
         self.mlp = nn.Sequential(
             nn.Linear(d_model, d_model * mlp_scale * 2, bias=False),
             SwiGLU(),
-            nn.RMSNorm(d_model * mlp_scale),
+            RMSNorm(d_model * mlp_scale),
             nn.Linear(d_model * mlp_scale, d_model, bias=False),
             nn.Dropout(resid_pdrop)
         )
@@ -104,7 +104,7 @@ class Transformer(nn.Module):
                                                        mlp_scale=mlp_scale,
                                                        attn_drop=attn_drop,
                                                        resid_pdrop=resid_pdrop) for _ in range(n_layers)]) 
-        self.ln_pre = nn.LayerNorm(n_embed)
+        self.ln_pre = RMSNorm(n_embed)
         
     #the input is an embbeding with this shape (batch, n_context, n_embed) 
     def forward(self, x):
@@ -146,7 +146,7 @@ class GPT(nn.Module):
                                        resid_pdrop=resid_pdrop,
                                        embed_pdrop=embed_pdrop)
         
-        self.ln_post = nn.LayerNorm(n_embed)
+        self.ln_post = RMSNorm(n_embed)
         self.out_head = nn.Linear(n_embed, n_vocab, bias=False)
         self.ignore_token = ignore_token
         self.block_size = block_size
