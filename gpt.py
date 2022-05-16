@@ -13,6 +13,20 @@ class SwiGLU(nn.Module):
         return F.silu(gate) * x
 
 
+#RMSNorm https://arxiv.org/abs/1910.07467
+#https://github.com/lucidrains/x-transformers/blob/main/x_transformers/x_transformers.py
+class RMSNorm(nn.Module):
+    def __init__(self, dim, eps=1e-8):
+        super().__init__()
+        self.scale = dim ** -0.5
+        self.eps = eps
+        self.g = nn.Parameter(torch.ones(dim))
+
+    def forward(self, x):
+        norm = torch.norm(x, dim=-1, keepdim=True) * self.scale
+        return x / norm.clamp(min=self.eps) * self.g
+
+
 # NormFormer https://arxiv.org/abs/2110.09456
 class TransformerBlock(nn.Module): 
     def __init__(
@@ -30,14 +44,14 @@ class TransformerBlock(nn.Module):
         self.d_model = d_model
         self.attn = nn.MultiheadAttention(d_model, n_heads, dropout=attn_drop, bias=False)
         
-        self.pre_attn_layer_norm = nn.LayerNorm(d_model)
-        self.pre_mlp_layer_norm = nn.LayerNorm(d_model)
-        self.post_attn_layer_norm = nn.LayerNorm(d_model)
+        self.pre_attn_layer_norm = nn.RMSNorm(d_model)
+        self.pre_mlp_layer_norm = nn.RMSNorm(d_model)
+        self.post_attn_layer_norm = nn.RMSNorm(d_model)
         
         self.mlp = nn.Sequential(
             nn.Linear(d_model, d_model * mlp_scale * 2, bias=False),
             SwiGLU(),
-            nn.LayerNorm(d_model * mlp_scale),
+            nn.RMSNorm(d_model * mlp_scale),
             nn.Linear(d_model * mlp_scale, d_model, bias=False),
             nn.Dropout(resid_pdrop)
         )
