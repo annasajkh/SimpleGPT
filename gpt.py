@@ -158,9 +158,6 @@ class GPT(nn.Module):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
             if isinstance(module, nn.Linear) and module.bias is not None:
                 torch.nn.init.zeros_(module.bias)
-        elif isinstance(module, RMSNorm):
-            torch.nn.init.zeros_(module.bias)
-            torch.nn.init.ones_(module.weight)
         elif isinstance(module, GPT):
             torch.nn.init.normal_(module.transformer.pos_embed, mean=0.0, std=0.02)
     
