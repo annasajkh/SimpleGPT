@@ -27,7 +27,7 @@ class RMSNorm(nn.Module):
         return x / norm.clamp(min=self.eps) * self.g
 
 
-# NormFormer https://arxiv.org/abs/2110.09456
+#NormFormer https://arxiv.org/abs/2110.09456
 class TransformerBlock(nn.Module): 
     def __init__(
         self,
