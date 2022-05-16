@@ -13,21 +13,7 @@ class SwiGLU(nn.Module):
         return F.silu(gate) * x
 
 
-#RMSNorm https://arxiv.org/abs/1910.07467
-#https://github.com/lucidrains/x-transformers/blob/main/x_transformers/x_transformers.py
-class RMSNorm(nn.Module):
-    def __init__(self, dim, eps=1e-8):
-        super().__init__()
-        self.scale = dim ** -0.5
-        self.eps = eps
-        self.g = nn.Parameter(torch.ones(dim))
-
-    def forward(self, x):
-        norm = torch.norm(x, dim=-1, keepdim=True) * self.scale
-        return x / norm.clamp(min=self.eps) * self.g
-
-
-#NormFormer https://arxiv.org/abs/2110.09456
+# NormFormer https://arxiv.org/abs/2110.09456
 class TransformerBlock(nn.Module): 
     def __init__(
         self,
@@ -44,14 +30,14 @@ class TransformerBlock(nn.Module):
         self.d_model = d_model
         self.attn = nn.MultiheadAttention(d_model, n_heads, dropout=attn_drop, bias=False)
         
-        self.pre_attn_layer_norm = RMSNorm(d_model)
-        self.pre_mlp_layer_norm = RMSNorm(d_model)
-        self.post_attn_layer_norm = RMSNorm(d_model)
+        self.pre_attn_layer_norm = nn.LayerNorm(d_model)
+        self.pre_mlp_layer_norm = nn.LayerNorm(d_model)
+        self.post_attn_layer_norm = nn.LayerNorm(d_model)
         
         self.mlp = nn.Sequential(
             nn.Linear(d_model, d_model * mlp_scale * 2, bias=False),
             SwiGLU(),
-            RMSNorm(d_model * mlp_scale),
+            nn.LayerNorm(d_model * mlp_scale),
             nn.Linear(d_model * mlp_scale, d_model, bias=False),
             nn.Dropout(resid_pdrop)
         )
@@ -104,7 +90,7 @@ class Transformer(nn.Module):
                                                        mlp_scale=mlp_scale,
                                                        attn_drop=attn_drop,
                                                        resid_pdrop=resid_pdrop) for _ in range(n_layers)]) 
-        self.ln_pre = RMSNorm(n_embed)
+        self.ln_pre = nn.LayerNorm(n_embed)
         
     #the input is an embbeding with this shape (batch, n_context, n_embed) 
     def forward(self, x):
@@ -146,7 +132,7 @@ class GPT(nn.Module):
                                        resid_pdrop=resid_pdrop,
                                        embed_pdrop=embed_pdrop)
         
-        self.ln_post = RMSNorm(n_embed)
+        self.ln_post = nn.LayerNorm(n_embed)
         self.out_head = nn.Linear(n_embed, n_vocab, bias=False)
         self.ignore_token = ignore_token
         self.block_size = block_size
@@ -158,6 +144,9 @@ class GPT(nn.Module):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
             if isinstance(module, nn.Linear) and module.bias is not None:
                 torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.LayerNorm):
+            torch.nn.init.zeros_(module.bias)
+            torch.nn.init.ones_(module.weight)
         elif isinstance(module, GPT):
             torch.nn.init.normal_(module.transformer.pos_embed, mean=0.0, std=0.02)
     
