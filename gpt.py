@@ -13,7 +13,7 @@ class SwiGLU(nn.Module):
         return F.silu(gate) * x
 
 
-# NormFormer https://arxiv.org/abs/2110.09456
+#NormFormer https://arxiv.org/abs/2110.09456
 class TransformerBlock(nn.Module): 
     def __init__(
         self,
