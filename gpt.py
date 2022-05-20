@@ -200,4 +200,4 @@ model = GPT(n_heads=6, n_layers=6, n_embed=768, block_size=1024, n_vocab=50257, 
 model.to(device)
 model.train()
 print(model.training)
-optimizer = AdamW(model.parameters(), lr=3e-4)
+optimizer = AdamW(model.parameters(), lr=3e-4, betas=(0.9, 0.95))
