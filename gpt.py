@@ -170,7 +170,7 @@ class GPT(nn.Module):
         return logits, loss
     
     @torch.no_grad()
-    def sample(self, x, temperature=1.0, top_k=40, max_length=100, batch_size=1):
+    def sample(self, x, temperature=1.0, top_k=40, max_length=100, batch_size=1, repetition_penalty=1.0):
         self.eval()
         self.reset_cache()
         
@@ -179,6 +179,17 @@ class GPT(nn.Module):
         
         for _ in tqdm(range(len(x), length)): 
             logits = self(batch)[0][:, -1]
+            
+            if repetition_penalty != 1.0:
+                for i in range(batch_size):
+                    for previous_tokens in set(batch[i].tolist()):
+                        logits[i, previous_tokens] /= repetition_penalty
+                        # if score < 0 then repetition penalty has to multiplied to reduce the previous token probability
+                        if logits[i, previous_tokens] < 0:
+                            logits[i, previous_tokens] *= repetition_penalty
+                        else:
+                            logits[i, previous_tokens] /= repetition_penalty
+            
             logits = F.softmax(logits / temperature, dim=1)
             logits = torch.topk(logits, top_k)
 
