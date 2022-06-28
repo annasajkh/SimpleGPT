@@ -177,8 +177,9 @@ class GPT(nn.Module):
         batch = torch.stack([torch.cat([torch.tensor([self.ignore_token, ]).to(x.device), x]) for _ in range(0, batch_size)]).to(x.device)
         length = self.block_size if len(x) + max_length > self.block_size else len(x) + max_length
         
-        for _ in tqdm(range(len(x), length)): 
-            logits = self(batch)[0][:, -1]
+        for _ in tqdm(range(len(x), length)):
+            with torch.no_grad():
+                logits = self(batch)[0][:, -1]
             
             if repetition_penalty != 1.0:
                 for i in range(batch_size):
