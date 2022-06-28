@@ -178,8 +178,7 @@ class GPT(nn.Module):
         length = self.block_size if len(x) + max_length > self.block_size else len(x) + max_length
         
         for _ in tqdm(range(len(x), length)):
-            with torch.no_grad():
-                logits = self(batch)[0][:, -1]
+            logits = self(batch)[0][:, -1]
             
             if repetition_penalty != 1.0:
                 for i in range(batch_size):
