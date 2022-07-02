@@ -18,7 +18,7 @@ class TransformerBlock(nn.Module):
     def __init__(
         self,
         d_model,
-        n_heads,
+        n_head,
         mlp_scale=4,
         attn_mask=None,
         attn_drop=0,
@@ -26,9 +26,9 @@ class TransformerBlock(nn.Module):
     ):
         super().__init__()
         self.attn_mask = attn_mask
-        self.n_heads = n_heads
+        self.n_head = n_head
         self.d_model = d_model
-        self.attn = nn.MultiheadAttention(d_model, n_heads, dropout=attn_drop, bias=False)
+        self.attn = nn.MultiheadAttention(d_model, n_head, dropout=attn_drop, bias=False)
         
         self.pre_attn_layer_norm = nn.LayerNorm(d_model)
         self.pre_mlp_layer_norm = nn.LayerNorm(d_model)
@@ -72,8 +72,8 @@ class Transformer(nn.Module):
         self,
         n_context,
         n_embed,
-        n_heads,
-        n_layers, 
+        n_head,
+        n_layer, 
         mlp_scale=4,
         attn_mask=None,
         attn_drop=0,
@@ -85,11 +85,11 @@ class Transformer(nn.Module):
         self.drop = nn.Dropout(embed_pdrop) 
         self.pos_embed = nn.Parameter(torch.randn(1, n_context, n_embed)) 
         self.layers = nn.Sequential(*[TransformerBlock(n_embed,
-                                                       n_heads,
+                                                       n_head,
                                                        attn_mask=attn_mask,
                                                        mlp_scale=mlp_scale,
                                                        attn_drop=attn_drop,
-                                                       resid_pdrop=resid_pdrop) for _ in range(n_layers)]) 
+                                                       resid_pdrop=resid_pdrop) for _ in range(n_layer)]) 
         self.ln_pre = nn.LayerNorm(n_embed)
         
     #the input is an embbeding with this shape (batch, n_context, n_embed) 
@@ -107,8 +107,8 @@ class Transformer(nn.Module):
 class GPT(nn.Module):
     def __init__(
         self,
-        n_heads,
-        n_layers,
+        n_head,
+        n_layer,
         n_embed,
         block_size,
         n_vocab,
@@ -124,8 +124,8 @@ class GPT(nn.Module):
         
         self.transformer = Transformer(n_context=block_size,
                                        n_embed=n_embed,
-                                       n_heads=n_heads,
-                                       n_layers=n_layers,
+                                       n_head=n_head,
+                                       n_layer=n_layer,
                                        mlp_scale=mlp_scale,
                                        attn_mask=torch.triu(torch.full((block_size, block_size), float("-inf")), diagonal=1),
                                        attn_drop=attn_drop,
@@ -206,7 +206,7 @@ class GPT(nn.Module):
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-model = GPT(n_heads=6, n_layers=6, n_embed=768, block_size=1024, n_vocab=50257, ignore_token=50256)
+model = GPT(n_head=6, n_layer=6, n_embed=768, block_size=1024, n_vocab=50257, ignore_token=50256)
 # model.load_state_dict(torch.load("transformer.pkl"))
 model.to(device)
 model.train()
