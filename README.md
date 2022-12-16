@@ -1,0 +1,2 @@
+# SimpleGPT
+simple gpt implementation
