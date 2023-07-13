@@ -5,15 +5,15 @@ from tqdm import tqdm
 from torch.optim import AdamW
 from IPython.display import clear_output
 
-#GLU Variant https://arxiv.org/abs/2002.05202
-#SwiGLU https://github.com/lucidrains/PaLM-pytorch/blob/main/palm_pytorch/palm_pytorch.py
+# GLU Variant https://arxiv.org/abs/2002.05202
+# SwiGLU https://github.com/lucidrains/PaLM-pytorch/blob/main/palm_pytorch/palm_pytorch.py
 class SwiGLU(nn.Module):
     def forward(self, x):
         x, gate = x.chunk(2, dim=-1)
         return F.silu(gate) * x
 
 
-#NormFormer https://arxiv.org/abs/2110.09456
+# NormFormer https://arxiv.org/abs/2110.09456
 class TransformerBlock(nn.Module): 
     def __init__(
         self,
@@ -92,7 +92,7 @@ class Transformer(nn.Module):
                                                        resid_pdrop=resid_pdrop) for _ in range(n_layers)]) 
         self.ln_pre = nn.LayerNorm(n_embed)
         
-    #the input is an embbeding with this shape (batch, n_context, n_embed) 
+    # the input is an embbeding with this shape (batch, n_context, n_embed) 
     def forward(self, x):
         x = self.drop(x + self.pos_embed[:, :x.shape[1], :])
         x = self.ln_pre(x) 
